@@ -123,7 +123,7 @@ void setup() {
     Serial.println("RTC OK");
     if(timeClient.update()){
       rtc.adjust(DateTime(timeClient.getEpochTime()));
-      Serial.print("RTP updated from NTC: ");
+      Serial.print("RTC updated from NTP: ");
       Serial.println(timeClient.getEpochTime());
     }else{
       Serial.println("NTP ERROR");
@@ -215,7 +215,7 @@ String sendHTML(float temperature,float humidity,float pressure,float altitude, 
   ptr +="<p>WIFI strength: ";
   ptr +=wifiStrength;
   ptr +="</p>";
-  ptr +="<p>Current time:  ";
+  ptr +="<p>RTC time:  ";
   ptr += String(currentTime.year(), DEC) + '/' + String(currentTime.month(), DEC) + '/' + String(currentTime.day(), DEC) + " " + String(currentTime.hour(), DEC) + ':' + String(currentTime.minute(), DEC) + ':' + String(currentTime.second(), DEC);;
   ptr +="</p>";
   ptr +="</div>\n";
