@@ -38,9 +38,9 @@ bool rtcStatus = false;
 
 //WIFI datas
 const char* ssid = "";
-const char* password = "";
+const char* password = "*";
 const char* APssid = "";
-const char* APpassword = "";
+const char* APpassword = "755894";
 //WIFI Connection trying overtime
 #define OVERTIME 10
 //WIFI timeout counter
@@ -141,7 +141,11 @@ void setup() {
 
 //Main loop
 void loop() {
-  server.handleClient();
+  DateTime currentTime = rtc.now();
+  if(currentTime.second() == 0) {
+    
+  }
+011z7 6e server.handleClient();
 }
 
 //Create output webpage
@@ -157,12 +161,13 @@ void outputHTML() {
 
 //Create output RAW data
 void outputRAW() {
+  DateTime currentTime = rtc.now();
   temperature = bme.readTemperature();
   humidity = bme.readHumidity();
   pressure = bme.readPressure() / 100.0F;
   altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
   wifiStrength = WiFi.RSSI();
-  server.send(200, "text/plain", sendRAW(temperature, humidity, pressure, altitude, wifiStrength)); 
+  server.send(200, "text/plain", sendRAW(temperature, humidity, pressure, altitude, wifiStrength, currentTime)); 
 }
 
 //Notfound page
@@ -171,18 +176,20 @@ void outputNotFound(){
 }
 
 //Raw data string creator
-String sendRAW(float temperature,float humidity,float pressure,float altitude, float wifiStrength){
-  String ptr = "";
+String sendRAW(float temperature,float humidity,float pressure,float altitude, float wifiStrength, DateTime currentTime){
+  String ptr = "[";
   ptr +=temperature;
-  ptr +=";";
+  ptr +=",";
   ptr +=humidity;
-  ptr +=";";
+  ptr +=",";
   ptr +=pressure;
-  ptr +=";";
+  ptr +=",";
   ptr +=altitude;
-  ptr +=";";
+  ptr +=",";
   ptr +=wifiStrength;
-  ptr +=";";
+  ptr +=",";
+  ptr += currentTime.unixtime();
+  ptr +="]";
   return ptr;
 }
 
@@ -190,7 +197,6 @@ String sendRAW(float temperature,float humidity,float pressure,float altitude, f
 String sendHTML(float temperature,float humidity,float pressure,float altitude, float wifiStrength, DateTime currentTime){
   String ptr = "<!DOCTYPE html> <html>\n";
   ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr +="<meta http-equiv=\"refresh\" content=\"2\">\n";
   ptr +="<title>ESP8266 Weather Station</title>\n";
   ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
   ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
