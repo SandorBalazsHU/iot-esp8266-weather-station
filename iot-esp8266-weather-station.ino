@@ -1,7 +1,7 @@
 /**
  * ESP8266 Weather station
  * Waterproof, solar charged weather station with battery based on ESP8266, BME280 and DS3231 RTC 
- * Data storage: 24C32 EEPROM
+ * Data storage: SD
  * 
  * Created by: Sándor Balázs
  * sandorbalazs9402@gmail.com
@@ -14,6 +14,7 @@
  */
 #include <Wire.h>
 #include "RTClib.h"
+#include <EEPROM.h>
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
@@ -33,14 +34,17 @@ float temperature, humidity, pressure, altitude, wifiStrength;
 //RTC init
 RTC_DS3231 rtc;
 const long utcOffsetInSeconds = 3600;
-char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+//char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 bool rtcStatus = false;
 
+//EEPROM
+//last address = 4095;
+
 //WIFI datas
-const char* ssid = "";
-const char* password = "*";
-const char* APssid = "";
-const char* APpassword = "755894";
+const char* ssid = "SB";
+const char* password = "117aSd558qWe94*";
+const char* APssid = "SBWeather";
+const char* APpassword = "11755894";
 //WIFI Connection trying overtime
 #define OVERTIME 10
 //WIFI timeout counter
@@ -60,6 +64,11 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
+  //LED INIT
+  pinMode(LED_BUILTIN, OUTPUT);
+  delay(100);
+  digitalWrite(LED_BUILTIN, HIGH);
+  
   //Setup start
   Serial.println("");
   Serial.println("ESP8266 - Start");
@@ -91,6 +100,19 @@ void setup() {
   
   //Status update
   isOnline = WiFi.isConnected();
+
+  if(isOnline){
+    Serial.println("WIFI Connection successfull");
+    Serial.print("WIFI status: ");
+    Serial.println(wifiStatuscode(WiFi.status()));
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(200);
+    digitalWrite(LED_BUILTIN, HIGH);
+  }else{
+    Serial.println("WIFI Connection ERROR");
+    Serial.print("WIFI status: ");
+    Serial.println(wifiStatuscode(WiFi.status()));
+  }
   
   //If not connected create AP
   if(timeout > OVERTIME){
@@ -103,15 +125,7 @@ void setup() {
     Serial.println(wifiStatuscode(WiFi.status()));
   }
 
-  if(isOnline){
-    Serial.println("WIFI Connection successfull");
-    Serial.print("WIFI status: ");
-    Serial.println(wifiStatuscode(WiFi.status()));
-  }else{
-    Serial.println("WIFI Connection ERROR");
-    Serial.print("WIFI status: ");
-    Serial.println(wifiStatuscode(WiFi.status()));
-  }
+
   
   //RTC update from WIFI
   if(isOnline) timeClient.begin();
@@ -145,16 +159,19 @@ void loop() {
   if(currentTime.second() == 0) {
     
   }
-011z7 6e server.handleClient();
+  server.handleClient();
 }
 
 //Create output webpage
 void outputHTML() {
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(200);
+  digitalWrite(LED_BUILTIN, HIGH);
   DateTime currentTime = rtc.now();
   temperature = bme.readTemperature();
   humidity = bme.readHumidity();
-  pressure = bme.readPressure() / 100.0F;
-  altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  pressure = (bme.readPressure() / 100.0f) + 10.44f;
+  altitude = bme.readAltitude(pressure);
   wifiStrength = WiFi.RSSI();
   server.send(200, "text/html", sendHTML(temperature, humidity, pressure, altitude, wifiStrength, currentTime)); 
 }
@@ -178,17 +195,17 @@ void outputNotFound(){
 //Raw data string creator
 String sendRAW(float temperature,float humidity,float pressure,float altitude, float wifiStrength, DateTime currentTime){
   String ptr = "[";
-  ptr +=temperature;
+  ptr +=sizeof(temperature);
   ptr +=",";
-  ptr +=humidity;
+  ptr +=sizeof(humidity);
   ptr +=",";
-  ptr +=pressure;
+  ptr +=sizeof(pressure);
   ptr +=",";
   ptr +=altitude;
   ptr +=",";
   ptr +=wifiStrength;
   ptr +=",";
-  ptr += currentTime.unixtime();
+  ptr += sizeof(currentTime.unixtime());
   ptr +="]";
   return ptr;
 }
@@ -197,6 +214,7 @@ String sendRAW(float temperature,float humidity,float pressure,float altitude, f
 String sendHTML(float temperature,float humidity,float pressure,float altitude, float wifiStrength, DateTime currentTime){
   String ptr = "<!DOCTYPE html> <html>\n";
   ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  ptr +="<meta http-equiv=\"refresh\" content=\"5\">\n";
   ptr +="<title>ESP8266 Weather Station</title>\n";
   ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
   ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
