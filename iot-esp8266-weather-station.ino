@@ -13,14 +13,17 @@
  * 
  */
 #include <Wire.h>
+#include "SdFat.h"
+#include "sdios.h"
 #include "RTClib.h"
-#include <EEPROM.h>
 #include <NTPClient.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <ESP8266WebServer.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+
+using namespace sdfat;
 
 //Sensor
 Adafruit_BME280 bme;
@@ -37,8 +40,10 @@ const long utcOffsetInSeconds = 3600;
 //char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 bool rtcStatus = false;
 
-//EEPROM
-//last address = 4095;
+//SD
+SdFs sd;
+FsFile file;
+const uint8_t SD_CS_PIN = 2;
 
 //WIFI datas
 const char* ssid = "SB";
@@ -58,7 +63,9 @@ NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
 //Webserver start
 ESP8266WebServer server(80);              
- 
+
+bool l = true;
+
 void setup() {
   //Serial start for DEBUG
   Serial.begin(115200);
@@ -124,8 +131,6 @@ void setup() {
     Serial.print("WIFI status: ");
     Serial.println(wifiStatuscode(WiFi.status()));
   }
-
-
   
   //RTC update from WIFI
   if(isOnline) timeClient.begin();
@@ -151,13 +156,52 @@ void setup() {
   server.onNotFound(outputNotFound);
   server.begin();
   Serial.println("Server Started!");
+
+  Serial.println("SD card starting...");
+  if (!sd.begin(SdSpiConfig(SD_CS_PIN, DEDICATED_SPI, SD_SCK_MHZ(16)))) {
+     Serial.println("SD Problem");
+  }
+  else
+  {
+     Serial.println("SD OK");
+  }
 }
 
 //Main loop
 void loop() {
   DateTime currentTime = rtc.now();
-  if(currentTime.second() == 0) {
-    
+
+  if(currentTime.second() %10 == 0) {
+    if(l) {
+      if (!file.open("data.csv", FILE_WRITE)) {
+        Serial.println("File open failed");
+      }
+      temperature = bme.readTemperature();
+      humidity = bme.readHumidity();
+      pressure = (bme.readPressure() / 100.0f) + 10.44f;
+      altitude = bme.readAltitude(pressure);
+      
+      String ptr = "";
+      ptr += String(currentTime.year(), DEC) + '.' + String(currentTime.month(), DEC) + '.' + String(currentTime.day(), DEC) + ";";
+      ptr += String(currentTime.hour()+1, DEC) + ':' + String(currentTime.minute(), DEC) + ':' + String(currentTime.second(), DEC) + ";";
+      ptr +=temperature;
+      ptr +=";";
+      ptr +=humidity;
+      ptr +=";";
+      ptr +=pressure;
+      ptr +=";";
+      ptr +=altitude;
+      ptr +=";\r\n";
+      file.print(ptr);
+      Serial.print("WRITED: ");
+      Serial.println(ptr);
+      file.close();
+    }
+    l = false;
+  }
+  else
+  {
+     l = true;
   }
   server.handleClient();
 }
@@ -240,7 +284,7 @@ String sendHTML(float temperature,float humidity,float pressure,float altitude, 
   ptr +=wifiStrength;
   ptr +="</p>";
   ptr +="<p>RTC time:  ";
-  ptr += String(currentTime.year(), DEC) + '/' + String(currentTime.month(), DEC) + '/' + String(currentTime.day(), DEC) + " " + String(currentTime.hour(), DEC) + ':' + String(currentTime.minute(), DEC) + ':' + String(currentTime.second(), DEC);;
+  ptr += String(currentTime.year(), DEC) + '/' + String(currentTime.month(), DEC) + '/' + String(currentTime.day(), DEC) + " " + String(currentTime.hour(), DEC) + ':' + String(currentTime.minute(), DEC) + ':' + String(currentTime.second(), DEC);
   ptr +="</p>";
   ptr +="</div>\n";
   ptr +="</body>\n";
